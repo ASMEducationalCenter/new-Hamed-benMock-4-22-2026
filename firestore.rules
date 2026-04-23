@@ -1,0 +1,77 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ===============================================================
+    // Assumed Data Model
+    // ===============================================================
+    //
+    // Collection: users
+    // Document ID: {uid}
+    // Fields:
+    //   - uid: string (required) - Firebase Auth UID
+    //   - email: string (required) - User email
+    //   - createdAt: timestamp (required) - Creation time
+    //   - lastLoginAt: timestamp (optional) - Last login time
+    //
+    // ===============================================================
+
+    // ===============================================================
+    // Helper Functions
+    // ===============================================================
+
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function getAdminEmail() {
+      return "hamedm@asmed.com";
+    }
+
+    function isAdmin() {
+      return isAuthenticated() && 
+             request.auth.token.get('email', '').lower() == getAdminEmail();
+    }
+
+    // Check if the account is older than 90 days
+    function isAccountActive(createdAt) {
+      return isAdmin() || request.time < createdAt + duration.value(90, 'd');
+    }
+
+    // Validate user document
+    function isValidUser(data) {
+      return data.keys().hasAll(['uid', 'email', 'createdAt']) &&
+             data.uid is string &&
+             data.email is string &&
+             data.createdAt is timestamp;
+    }
+
+    match /users/{uid} {
+      // Allow read if owner or admin
+      allow read: if isOwner(uid) || isAdmin();
+
+      // Allow create if owner and setting correct initial data
+      allow create: if isOwner(uid) &&
+                       isValidUser(request.resource.data) &&
+                       request.resource.data.createdAt == request.time;
+
+      // Allow update if owner, account was active, and not changing createdAt
+      allow update: if isOwner(uid) &&
+                       isAccountActive(resource.data.createdAt) &&
+                       isValidUser(request.resource.data) &&
+                       request.resource.data.createdAt == resource.data.createdAt;
+    }
+
+    match /allowlist/{email} {
+      // Allow read if authenticated and email matches (case-insensitive)
+      allow read: if isAuthenticated() && (isAdmin() || request.auth.token.get('email', '').lower() == email.lower());
+      
+      // Allow admin to manage allowlist
+      allow write: if isAdmin();
+    }
+  }
+}

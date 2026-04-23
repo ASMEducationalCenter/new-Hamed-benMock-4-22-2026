@@ -1,0 +1,41 @@
+{
+  "entities": {
+    "users": {
+      "title": "User",
+      "description": "User profile with access tracking",
+      "type": "object",
+      "properties": {
+        "uid": {
+          "type": "string",
+          "description": "Firebase Auth UID"
+        },
+        "email": {
+          "type": "string",
+          "format": "email",
+          "description": "User email address"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Timestamp when the user was created"
+        },
+        "lastLoginAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Timestamp of the last login"
+        }
+      },
+      "required": ["uid", "email", "createdAt"]
+    }
+  },
+  "firestore": {
+    "/users/{uid}": {
+      "schema": "users",
+      "description": "User documents indexed by UID"
+    },
+    "/allowlist/{email}": {
+      "schema": "users",
+      "description": "Allowlisted emails with optional metadata"
+    }
+  }
+}

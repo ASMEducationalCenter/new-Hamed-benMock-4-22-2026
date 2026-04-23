@@ -1,0 +1,8 @@
+{
+  "name": "new Hamed benMock 4-22-2026",
+  "description": "A voice-based mock interview trainer for Tier 1 IT Help Desk candidates, featuring real-time feedback and coaching.",
+  "requestFramePermissions": [
+    "microphone"
+  ],
+  "majorCapabilities": []
+}
