@@ -2,7 +2,7 @@ export interface QuestionData {
   id: number;
   question: string;
   modelAnswer: string;
-  realWorldExamples: string[];
+  realWorldExamples?: string[];
 }
 
 export enum InterviewStatus {

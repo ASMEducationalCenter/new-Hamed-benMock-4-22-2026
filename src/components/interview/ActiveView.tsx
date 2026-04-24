@@ -46,10 +46,37 @@ const ActiveView: React.FC<ActiveViewProps> = ({ transcriptions, resetKey, onSto
             </svg>
           </div>
           <h3 className="text-2xl font-bold text-slate-900 mb-2">The Coach is listening...</h3>
-          <p className="text-slate-500 text-lg">Speak naturally. Answer the questions as if you're in a real interview.</p>
+          <p className="text-slate-500 text-lg mb-8">Speak naturally. Answer the questions as if you're in a real interview.</p>
+          
+          {/* Highlighted Current Question */}
+          {transcriptions.length > 0 && transcriptions[transcriptions.length - 1].role === 'model' && (
+            <div className="bg-blue-50 border border-blue-100 rounded-xl p-6 mb-8 text-left animate-in fade-in slide-in-from-bottom-4 duration-500">
+              <span className="text-xs font-bold text-blue-600 uppercase tracking-widest mb-2 block">Current Question / Feedback</span>
+              <p className="text-slate-800 text-xl font-medium leading-relaxed">
+                {transcriptions[transcriptions.length - 1].text}
+              </p>
+            </div>
+          )}
+
+          {transcriptions.length > 0 && transcriptions[transcriptions.length - 1].role === 'user' && (
+            <div className="bg-slate-50 border border-slate-100 rounded-xl p-6 mb-8 text-left opacity-75">
+              <span className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-2 block">Your Last Answer</span>
+              <p className="text-slate-700 text-lg">
+                {transcriptions[transcriptions.length - 1].text}
+              </p>
+            </div>
+          )}
         </div>
 
-        <TranscriptionDisplay items={transcriptions} />
+        <div className="border-t border-slate-100 pt-8 mt-8">
+          <h4 className="text-sm font-bold text-slate-400 uppercase tracking-widest mb-4 flex items-center">
+            <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+            </svg>
+            Interview Log
+          </h4>
+          <TranscriptionDisplay items={transcriptions} />
+        </div>
       </div>
 
       <div className="bg-blue-600 rounded-xl p-4 flex items-center justify-between text-white shadow-lg">

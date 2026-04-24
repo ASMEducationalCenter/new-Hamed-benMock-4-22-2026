@@ -65,8 +65,13 @@ export function useGeminiLive() {
       streamRef.current = stream;
 
       const sessionPromise = ai.live.connect({
-        model: 'gemini-2.5-flash-native-audio-preview-12-2025',
+        model: 'gemini-3.1-flash-live-preview',
         config: {
+          generationConfig: {
+            candidateCount: 1,
+            temperature: 0.1,
+            maxOutputTokens: 1000,
+          },
           responseModalities: [Modality.AUDIO],
           speechConfig: {
             voiceConfig: { prebuiltVoiceConfig: { voiceName: 'Kore' } },
@@ -76,29 +81,32 @@ export function useGeminiLive() {
           outputAudioTranscription: {},
         },
         callbacks: {
-          onopen: () => {
+          onopen: async () => {
+            const session = await sessionPromise;
             setStatus(InterviewStatus.ACTIVE);
+            
+            // Proactively trigger the first greet from the coach
+            session.sendRealtimeInput({ text: "The interview starts now. Please greet the student and ask for their name as per your instructions." });
+
             const source = inCtx.createMediaStreamSource(stream);
-            const scriptProcessor = inCtx.createScriptProcessor(4096, 1, 1);
+            // Reduced buffer size further for lower latency (512 samples @ 16kHz is ~32ms)
+            const scriptProcessor = inCtx.createScriptProcessor(512, 1, 1);
 
             scriptProcessor.onaudioprocess = (e) => {
               const inputData = e.inputBuffer.getChannelData(0);
               
-              // Simple silence suppression: check if any sample exceeds a threshold
-              let hasSound = false;
+              // Simplified sound check for speed
+              let maxVal = 0;
               for (let i = 0; i < inputData.length; i++) {
-                if (Math.abs(inputData[i]) > 0.01) { // 1% threshold
-                  hasSound = true;
-                  break;
-                }
+                const abs = Math.abs(inputData[i]);
+                if (abs > maxVal) maxVal = abs;
               }
 
-              if (!hasSound) return;
-
-              const pcmBlob = createBlob(inputData);
-              sessionPromise.then(session => {
+              // More sensitive threshold to catch soft starts
+              if (maxVal > 0.003) {
+                const pcmBlob = createBlob(inputData);
                 session.sendRealtimeInput({ audio: pcmBlob });
-              });
+              }
             };
 
             source.connect(scriptProcessor);
@@ -128,23 +136,26 @@ export function useGeminiLive() {
             }
 
             if (message.serverContent?.inputTranscription) {
-              currentInputTranscriptionRef.current += message.serverContent.inputTranscription.text;
+              const text = message.serverContent.inputTranscription.text;
+              currentInputTranscriptionRef.current += text;
+              // Update transiently for UI? Or wait for turn. 
+              // For now, let's keep it simple but ensure it's captured on interupt too.
             }
             if (message.serverContent?.outputTranscription) {
-              currentOutputTranscriptionRef.current += message.serverContent.outputTranscription.text;
+              const text = message.serverContent.outputTranscription.text;
+              currentOutputTranscriptionRef.current += text;
             }
 
             if (message.serverContent?.turnComplete) {
-              const userInput = currentInputTranscriptionRef.current;
-              const coachOutput = currentOutputTranscriptionRef.current;
+              const userInput = currentInputTranscriptionRef.current.trim();
+              const coachOutput = currentOutputTranscriptionRef.current.trim();
 
-              const newItems: TranscriptionItem[] = [];
-              if (userInput) newItems.push({ role: 'user', text: userInput, timestamp: Date.now() });
-              if (coachOutput) newItems.push({ role: 'model', text: coachOutput, timestamp: Date.now() });
-
-              if (newItems.length > 0) {
-                setTranscriptions(prev => [...prev, ...newItems]);
-              }
+              setTranscriptions(prev => {
+                const updated = [...prev];
+                if (userInput) updated.push({ role: 'user', text: userInput, timestamp: Date.now() });
+                if (coachOutput) updated.push({ role: 'model', text: coachOutput, timestamp: Date.now() });
+                return updated;
+              });
 
               currentInputTranscriptionRef.current = '';
               currentOutputTranscriptionRef.current = '';

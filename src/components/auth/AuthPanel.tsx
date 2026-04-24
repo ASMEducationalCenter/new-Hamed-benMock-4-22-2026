@@ -152,11 +152,21 @@ export default function AuthPanel({
       setShowEmailForm(false);
       clearMessages();
     } catch (e: any) {
-      const m = (e?.message || "").toString();
-      if (m.includes("Access denied")) {
-        setGoogleMsg("This Google account is not authorized. Please contact ASM staff.");
+      const code = e?.code as string | undefined;
+      console.error("Google Auth Error:", e);
+      if (code === "auth/popup-closed-by-user") {
+        setGoogleMsg("Login window closed.");
+      } else if (code === "auth/operation-not-allowed") {
+        setGoogleMsg("Google login is not enabled in your Firebase project.");
+      } else if (code === "auth/unauthorized-domain") {
+        setGoogleMsg("This domain is not authorized in your Firebase console.");
       } else {
-        setGoogleMsg(e?.message || "Google login failed.");
+        const m = (e?.message || "").toString();
+        if (m.includes("Access denied")) {
+          setGoogleMsg("This Google account is not authorized. Please contact ASM staff.");
+        } else {
+          setGoogleMsg(e?.message || "Google login failed.");
+        }
       }
     } finally {
       setLoading(false);
@@ -226,23 +236,32 @@ export default function AuthPanel({
       }
     } catch (e: any) {
       const code = e?.code as string | undefined;
-      console.error("Auth Exception:", e);
+      console.error("Auth Exception Details:", {
+        code,
+        message: e?.message,
+        fullError: e
+      });
+
       if (code === "auth/operation-not-allowed") {
         setErrorMsg("Email/Password login is not enabled in your Firebase project. Please enable it in the Firebase Console (Authentication > Sign-in method).");
       } else if (code === "auth/email-already-in-use") {
         setErrorMsg("That email is already in use. Try signing in.");
       } else if (code === "auth/invalid-credential") {
-        setErrorMsg("Invalid email or password.");
+        setErrorMsg("Invalid email or password. Reminder: You recently switched to a NEW Firebase project. Please try 'Create Account' if you haven't registered on this specific database yet.");
       } else if (code === "auth/user-not-found") {
-        setErrorMsg("No account found with this email.");
+        setErrorMsg("No account found with this email on the new database. Please Create Account.");
       } else if (code === "auth/wrong-password") {
-        setErrorMsg("Incorrect password.");
+        setErrorMsg("Incorrect password. Please try again or use the reset link.");
       } else if (code === "auth/invalid-email") {
-        setErrorMsg("Invalid email address.");
+        setErrorMsg("Invalid email address format.");
       } else if (code === "auth/weak-password") {
         setErrorMsg("Password must be at least 8 characters long.");
+      } else if (code === "auth/popup-closed-by-user") {
+        setErrorMsg("Login window was closed before completion.");
+      } else if (code === "auth/cancelled-popup-request") {
+        // Ignore, another popup was opened
       } else {
-        setErrorMsg(e?.message || "Authentication failed.");
+        setErrorMsg(e?.message || "Authentication failed. Please check your internet connection.");
       }
     } finally {
       setLoading(false);
